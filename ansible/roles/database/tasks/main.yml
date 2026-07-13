@@ -1,0 +1,62 @@
+---
+# PostgreSQL, en conteneur, sur la VM DB (sous-reseau prive).
+#
+# La base n'est PAS geree par le pipeline CI/CD : on ne construit aucune image,
+# on utilise l'image officielle. C'est donc Ansible qui la deploie.
+
+- name: Refuser de continuer si le mot de passe de la base n'est pas fourni
+  ansible.builtin.assert:
+    that:
+      - db_password | length > 0
+    fail_msg: >-
+      DB_PASSWORD n'est pas defini. Lance :  export DB_PASSWORD='...'
+      Aucun mot de passe ne doit etre ecrit en dur dans le code.
+    success_msg: "Mot de passe de la base recupere depuis l'environnement"
+
+- name: Creer le dossier du schema initial
+  ansible.builtin.file:
+    path: /opt/medishop/db-init
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Deposer le schema initial de la base
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../backend/db/init/01-schema.sql"
+    dest: /opt/medishop/db-init/01-schema.sql
+    mode: "0644"
+  become: true
+
+- name: Lancer PostgreSQL 16
+  community.docker.docker_container:
+    name: medishop-db
+    image: postgres:16-alpine
+    state: started
+    restart_policy: unless-stopped
+    env:
+      POSTGRES_DB: "{{ db_name }}"
+      POSTGRES_USER: "{{ db_user }}"
+      POSTGRES_PASSWORD: "{{ db_password }}"
+    ports:
+      # Publie sur l'IP privee uniquement. Meme si quelqu'un ouvrait le NSG,
+      # la base n'ecouterait pas sur une interface publique (elle n'en a pas).
+      - "{{ db_port }}:5432"
+    volumes:
+      - medishop-db-data:/var/lib/postgresql/data
+      # Le schema n'est joue qu'au tout premier demarrage (volume vide)
+      - /opt/medishop/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_user }} -d {{ db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  become: true
+
+- name: Attendre que la base accepte les connexions
+  ansible.builtin.command: docker exec medishop-db pg_isready -U {{ db_user }} -d {{ db_name }}
+  become: true
+  register: pg_pret
+  until: pg_pret.rc == 0
+  retries: 20
+  delay: 5
+  changed_when: false

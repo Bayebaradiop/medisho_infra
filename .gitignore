@@ -1,0 +1,29 @@
+### SECRETS - ne JAMAIS versionner ###
+.secrets.env
+*.env
+!.env.example
+
+### Terraform ###
+# L'etat contient des donnees sensibles en clair
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+crash.log
+
+# Valeurs reelles des variables (souscription Azure, IP admin)
+terraform.tfvars
+*.auto.tfvars
+
+### Ansible ###
+# Fichiers GENERES par generate-inventory.sh a partir de terraform output.
+# Ils contiennent les IP reelles et sont recrees a la demande : les versionner
+# n'aurait aucun sens et creerait des conflits.
+inventory.ini
+ssh.cfg
+known_hosts
+*.retry
+
+### Divers ###
+*.log
+.DS_Store

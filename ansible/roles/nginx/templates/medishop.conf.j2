@@ -1,0 +1,44 @@
+# Fichier GENERE par Ansible - ne pas editer sur le serveur
+#
+# Nginx est le reverse proxy du Front. Il est le SEUL point d'entree public :
+#   /      -> conteneur du front applicatif, sur cette meme VM
+#   /api/  -> VM Back, dans le sous-reseau prive, injoignable depuis Internet
+
+upstream front_app {
+    server 127.0.0.1:{{ front_container_port }};
+}
+
+upstream back_api {
+    server {{ backend_host }}:{{ backend_port }};
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ domain_name }};
+
+    # Certbot deposera ici son fichier de validation (challenge HTTP-01).
+    # Cet emplacement doit rester accessible en HTTP, meme apres passage au HTTPS.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # L'API : Nginx relaie vers le sous-reseau prive.
+    # C'est ce qui permet au navigateur de joindre le Back sans que celui-ci
+    # soit expose sur Internet.
+    location /api/ {
+        proxy_pass http://back_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://front_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

@@ -1,0 +1,12 @@
+---
+# Nom de domaine servi par Nginx.
+# Tant qu'aucun domaine n'est fourni, on retombe sur l'IP publique du Front :
+# le site reste accessible, seul le HTTPS (etape 5) exige un vrai domaine.
+domain_name: "{{ public_ip }}"
+
+# Port sur lequel le conteneur du front applicatif ecoute, sur la VM Front
+front_container_port: 3000
+
+# Le Back, joignable uniquement depuis le Front (voir NSG)
+backend_host: "10.0.2.10"
+backend_port: 8080

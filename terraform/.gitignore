@@ -1,0 +1,13 @@
+# Etat Terraform : contient des donnees sensibles, ne JAMAIS le versionner
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Valeurs reelles des variables (IP admin, id de souscription)
+terraform.tfvars
+*.auto.tfvars
+
+# Plans
+*.tfplan
+crash.log

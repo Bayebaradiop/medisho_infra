@@ -1,0 +1,26 @@
+---
+# Variables partagees par toutes les machines.
+#
+# AUCUN SECRET N'EST ECRIT ICI : le mot de passe de la base est lu dans
+# l'environnement. Ce fichier peut donc etre versionne sans risque.
+#
+# Avant de lancer le playbook :
+#   export DB_PASSWORD='...'
+#
+# Plus tard, c'est Jenkins qui injectera cette variable depuis ses Credentials.
+
+db_name: todoapp
+db_user: todoapp
+db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+
+# IP privees (voir terraform output)
+db_host: "10.0.2.20"
+db_port: 5432
+back_host: "10.0.2.10"
+back_port: 8080
+front_container_port: 3000
+
+# Images publiees sur Docker Hub
+image_back: "bayebara01012000/medishop_b"
+image_front: "bayebara01012000/medishop_f"
+image_tag: "latest"

@@ -1,0 +1,14 @@
+# Copier ce fichier en terraform.tfvars puis renseigner les valeurs.
+# terraform.tfvars n'est jamais versionne (voir .gitignore).
+
+# Identifiant de ta souscription Azure : az account show --query id -o tsv
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# Ton IP publique : curl https://api.ipify.org
+# Seule cette IP pourra se connecter en SSH au Front.
+admin_source_ip = "1.2.3.4"
+
+# Optionnel : decommenter pour surcharger les valeurs par defaut
+# location            = "francecentral"
+# vm_size             = "Standard_B1s"
+# ssh_public_key_path = "~/.ssh/id_medishop.pub"

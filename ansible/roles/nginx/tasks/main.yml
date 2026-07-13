@@ -1,0 +1,56 @@
+---
+# Nginx en reverse proxy, sur la VM Front uniquement.
+
+- name: Installer Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Creer le dossier de validation Certbot
+  ansible.builtin.file:
+    path: /var/www/certbot
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+  become: true
+
+- name: Deposer la configuration du site MediShop
+  ansible.builtin.template:
+    src: medishop.conf.j2
+    dest: /etc/nginx/sites-available/medishop.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Recharger Nginx
+
+- name: Activer le site MediShop
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/medishop.conf
+    dest: /etc/nginx/sites-enabled/medishop.conf
+    state: link
+  become: true
+  notify: Recharger Nginx
+
+- name: Desactiver le site par defaut de Nginx
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: Recharger Nginx
+
+- name: Verifier que la configuration Nginx est valide
+  ansible.builtin.command: nginx -t
+  become: true
+  changed_when: false
+
+- name: S'assurer que Nginx tourne et demarre au boot
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
+  become: true

@@ -1,0 +1,80 @@
+---
+# Installe Docker Engine + le plugin Docker Compose sur les 3 VMs.
+#
+# Chaque tache decrit un ETAT SOUHAITE, pas une commande a executer.
+# C'est ce qui rend le role idempotent : si l'etat est deja atteint,
+# Ansible signale "ok" et ne fait rien.
+
+- name: Installer les dependances necessaires au depot Docker
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - python3-pip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Creer le dossier des cles APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Telecharger la cle GPG officielle de Docker
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  become: true
+
+- name: Declarer le depot officiel Docker
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}
+      signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu
+      {{ ansible_distribution_release }} stable
+    filename: docker
+    state: present
+  become: true
+
+- name: Installer Docker Engine et le plugin Compose
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  become: true
+
+- name: Installer le SDK Docker pour Python
+  ansible.builtin.apt:
+    name: python3-docker
+    state: present
+  become: true
+  # Requis par les modules community.docker.* : ils pilotent Docker via
+  # l'API Python, et non en lancant la commande "docker".
+
+- name: S'assurer que le service Docker tourne et demarre au boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+
+- name: Autoriser l'utilisateur a lancer docker sans sudo
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  become: true
+  # La nouvelle appartenance au groupe n'est prise en compte qu'a la
+  # prochaine session SSH : on force donc une reconnexion.
+  notify: Reinitialiser la connexion SSH
