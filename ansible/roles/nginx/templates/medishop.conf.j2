@@ -12,20 +12,75 @@ upstream back_api {
     server {{ backend_host }}:{{ backend_port }};
 }
 
+# ------------------------------------------------------------------
+#  HTTP (port 80)
+# ------------------------------------------------------------------
 server {
     listen 80;
     listen [::]:80;
     server_name {{ domain_name }};
 
-    # Certbot deposera ici son fichier de validation (challenge HTTP-01).
-    # Cet emplacement doit rester accessible en HTTP, meme apres passage au HTTPS.
+    # Certbot depose ici son fichier de validation (challenge HTTP-01).
+    # DOIT rester accessible en HTTP meme apres le passage au HTTPS, sinon
+    # le renouvellement automatique du certificat echouerait.
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
 
-    # L'API : Nginx relaie vers le sous-reseau prive.
-    # C'est ce qui permet au navigateur de joindre le Back sans que celui-ci
-    # soit expose sur Internet.
+{% if https_actif %}
+    # Le certificat existe : tout le trafic HTTP est redirige vers HTTPS.
+    location / {
+        return 301 https://$host$request_uri;
+    }
+{% else %}
+    # Pas encore de certificat : on sert le site en HTTP.
+    location /api/ {
+        proxy_pass http://back_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://front_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+{% endif %}
+}
+
+{% if https_actif %}
+# ------------------------------------------------------------------
+#  HTTPS (port 443)
+# ------------------------------------------------------------------
+server {
+    # Ubuntu 22.04 fournit nginx 1.18 : le HTTP/2 s'active DANS la ligne listen.
+    # La syntaxe moderne "http2 on;" n'existe qu'a partir de nginx 1.25 et serait
+    # rejetee ici ("unknown directive http2").
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ domain_name }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # HSTS : le navigateur refusera desormais le HTTP sur ce domaine
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    # L'API : Nginx relaie vers le sous-reseau prive. C'est ce qui permet au
+    # navigateur de joindre le Back sans que celui-ci soit expose sur Internet.
+    #
+    # Le trafic Nginx -> Back reste en HTTP : il circule dans le reseau prive
+    # Azure, et le Back ne possede pas de certificat. L'en-tete
+    # X-Forwarded-Proto informe l'application que le visiteur, lui, est en HTTPS.
     location /api/ {
         proxy_pass http://back_api;
         proxy_set_header Host $host;
@@ -42,3 +97,4 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+{% endif %}

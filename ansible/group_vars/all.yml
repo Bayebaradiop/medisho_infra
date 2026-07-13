@@ -9,6 +9,15 @@
 #
 # Plus tard, c'est Jenkins qui injectera cette variable depuis ses Credentials.
 
+# Nom de domaine du site.
+#
+# sslip.io est un service DNS qui resout n'importe quel nom contenant une IP
+# vers cette IP : 20.199.183.9.sslip.io -> 20.199.183.9. Aucune inscription,
+# et Let's Encrypt delivre bien un certificat pour ce domaine (verifie).
+#
+# Il en faut un : Let's Encrypt ne certifie JAMAIS une adresse IP nue.
+domain_name: "20.199.183.9.sslip.io"
+
 db_name: todoapp
 db_user: todoapp
 db_password: "{{ lookup('env', 'DB_PASSWORD') }}"

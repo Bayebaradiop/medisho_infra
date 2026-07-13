@@ -1,9 +1,17 @@
 ---
-# Nginx en reverse proxy, sur la VM Front uniquement.
+# Nginx en reverse proxy + HTTPS Let's Encrypt, sur la VM Front uniquement.
+#
+# L'ordre des taches resout un probleme de poule et d'oeuf :
+#   - Certbot a besoin que Nginx serve deja /.well-known/acme-challenge/ en HTTP
+#   - mais la config HTTPS a besoin d'un certificat qui n'existe pas encore
+# On deploie donc d'abord une config HTTP valide, puis on obtient le certificat,
+# puis on redeploie la config avec le HTTPS active.
 
-- name: Installer Nginx
+- name: Installer Nginx et Certbot
   ansible.builtin.apt:
-    name: nginx
+    name:
+      - nginx
+      - certbot
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -17,6 +25,18 @@
     group: www-data
     mode: "0755"
   become: true
+
+# --- Passe 1 : le certificat existe-t-il deja ? ---
+
+- name: Verifier si un certificat existe deja
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  become: true
+  register: certificat
+
+- name: Retenir si le HTTPS peut etre active
+  ansible.builtin.set_fact:
+    https_actif: "{{ certificat.stat.exists }}"
 
 - name: Deposer la configuration du site MediShop
   ansible.builtin.template:
@@ -54,3 +74,58 @@
     state: started
     enabled: true
   become: true
+
+# On applique la config HTTP maintenant : Certbot en a besoin pour valider
+# le domaine a l'etape suivante.
+- name: Appliquer la configuration avant de demander le certificat
+  ansible.builtin.meta: flush_handlers
+
+# --- Passe 2 : obtenir le certificat, puis reactiver le HTTPS ---
+
+- name: Obtenir le certificat Let's Encrypt
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot -w /var/www/certbot
+      -d {{ domain_name }}
+      --non-interactive --agree-tos --register-unsafely-without-email
+    # "creates" rend la tache IDEMPOTENTE : si le certificat est deja la,
+    # Certbot n'est pas rappele. Indispensable, car Let's Encrypt limite
+    # severement le nombre de demandes par semaine.
+    creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  become: true
+  when: not https_actif
+
+- name: Reverifier la presence du certificat
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  become: true
+  register: certificat_final
+
+- name: Activer le HTTPS si le certificat est desormais present
+  ansible.builtin.set_fact:
+    https_actif: "{{ certificat_final.stat.exists }}"
+
+- name: Redeployer la configuration avec le HTTPS
+  ansible.builtin.template:
+    src: medishop.conf.j2
+    dest: /etc/nginx/sites-available/medishop.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: https_actif
+  notify: Recharger Nginx
+
+- name: Verifier la configuration HTTPS avant de recharger
+  ansible.builtin.command: nginx -t
+  become: true
+  changed_when: false
+  when: https_actif
+
+# Certbot installe lui-meme une tache planifiee de renouvellement. On verifie
+# qu'elle fonctionne : un certificat expire fait tomber le site.
+- name: Verifier que le renouvellement automatique fonctionne
+  ansible.builtin.command: certbot renew --dry-run
+  become: true
+  changed_when: false
+  when: https_actif

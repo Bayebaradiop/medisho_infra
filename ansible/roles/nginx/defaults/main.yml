@@ -1,8 +1,11 @@
 ---
-# Nom de domaine servi par Nginx.
-# Tant qu'aucun domaine n'est fourni, on retombe sur l'IP publique du Front :
-# le site reste accessible, seul le HTTPS (etape 5) exige un vrai domaine.
+# Nom de domaine servi par Nginx (surcharge dans group_vars/all.yml).
+# A defaut, on retombe sur l'IP publique : le site reste accessible en HTTP,
+# mais Let's Encrypt ne delivre JAMAIS de certificat pour une adresse IP.
 domain_name: "{{ public_ip }}"
+
+# Calcule par le role : vrai si le certificat existe deja sur le serveur.
+https_actif: false
 
 # Port sur lequel le conteneur du front applicatif ecoute, sur la VM Front
 front_container_port: 3000
