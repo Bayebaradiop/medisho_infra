@@ -1,11 +1,4 @@
 ---
-# Provisioning des 3 VMs MediShop.
-#
-# Lancer :  ./generate-inventory.sh && ansible-playbook playbook.yml
-#
-# Le playbook est IDEMPOTENT : on peut le rejouer autant de fois que
-# necessaire, il ne recree que ce qui manque.
-
 - name: Docker sur toutes les machines (Front, Back, DB)
   hosts: all
   gather_facts: true

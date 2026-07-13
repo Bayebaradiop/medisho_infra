@@ -1,7 +1,3 @@
-# ============================================================
-#  Reseau : 1 VNet, 1 sous-reseau public, 1 sous-reseau prive
-# ============================================================
-
 resource "azurerm_resource_group" "main" {
   name     = "${var.prefix}-rg"
   location = var.location
@@ -16,7 +12,6 @@ resource "azurerm_virtual_network" "main" {
   tags                = var.tags
 }
 
-# Sous-reseau public : contient le Front, joignable depuis Internet
 resource "azurerm_subnet" "public" {
   name                 = "${var.prefix}-subnet-public"
   resource_group_name  = azurerm_resource_group.main.name
@@ -24,25 +19,12 @@ resource "azurerm_subnet" "public" {
   address_prefixes     = [var.public_subnet_cidr]
 }
 
-# Sous-reseau prive : contient le Back et la DB, aucune IP publique
 resource "azurerm_subnet" "private" {
   name                 = "${var.prefix}-subnet-private"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.private_subnet_cidr]
 }
-
-# ============================================================
-#  NAT Gateway
-#
-#  Azure a supprime l'acces sortant par defaut : sans cela, une VM
-#  sans IP publique ne pourrait PAS joindre Internet, et le
-#  "docker pull" sur le Back et la DB echouerait.
-#
-#  La NAT Gateway autorise le trafic SORTANT uniquement. Aucune
-#  connexion entrante depuis Internet n'est possible a travers elle :
-#  c'est exactement ce que demande le sujet.
-# ============================================================
 
 resource "azurerm_public_ip" "nat" {
   name                = "${var.prefix}-nat-pip"
@@ -66,8 +48,6 @@ resource "azurerm_nat_gateway_public_ip_association" "main" {
   public_ip_address_id = azurerm_public_ip.nat.id
 }
 
-# On rattache la NAT Gateway au sous-reseau PRIVE uniquement.
-# Le Front, lui, sort par sa propre IP publique.
 resource "azurerm_subnet_nat_gateway_association" "private" {
   subnet_id      = azurerm_subnet.private.id
   nat_gateway_id = azurerm_nat_gateway.main.id

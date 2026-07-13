@@ -1,9 +1,4 @@
-# ============================================================
-#  Les 3 VMs : Front (publique), Back et DB (privees)
-# ============================================================
-
 locals {
-  # Ubuntu 22.04 LTS, image officielle Canonical
   image = {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
@@ -12,13 +7,6 @@ locals {
   }
 }
 
-# ------------------------------------------------------------
-#  FRONT
-# ------------------------------------------------------------
-
-# Seule IP publique de l'infrastructure cote applicatif.
-# Static : elle ne change pas au redemarrage, indispensable pour que
-# l'enregistrement DNS du domaine reste valable.
 resource "azurerm_public_ip" "front" {
   name                = "${var.prefix}-front-pip"
   location            = azurerm_resource_group.main.location
@@ -57,7 +45,6 @@ resource "azurerm_linux_virtual_machine" "front" {
   network_interface_ids = [azurerm_network_interface.front.id]
   tags                  = var.tags
 
-  # Aucun mot de passe : authentification par cle SSH uniquement
   disable_password_authentication = true
 
   admin_ssh_key {
@@ -78,10 +65,6 @@ resource "azurerm_linux_virtual_machine" "front" {
   }
 }
 
-# ------------------------------------------------------------
-#  BACK
-# ------------------------------------------------------------
-
 resource "azurerm_network_interface" "back" {
   name                = "${var.prefix}-back-nic"
   location            = azurerm_resource_group.main.location
@@ -93,8 +76,6 @@ resource "azurerm_network_interface" "back" {
     subnet_id                     = azurerm_subnet.private.id
     private_ip_address_allocation = "Static"
     private_ip_address            = var.back_private_ip
-    # Pas de public_ip_address_id : cette VM n'est PAS joignable depuis Internet.
-    # Elle sort via la NAT Gateway pour telecharger ses images Docker.
   }
 }
 
@@ -131,10 +112,6 @@ resource "azurerm_linux_virtual_machine" "back" {
     version   = local.image.version
   }
 }
-
-# ------------------------------------------------------------
-#  DB
-# ------------------------------------------------------------
 
 resource "azurerm_network_interface" "db" {
   name                = "${var.prefix}-db-nic"

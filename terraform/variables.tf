@@ -1,6 +1,3 @@
-# Aucune valeur sensible ou specifique a l'environnement n'est ecrite en dur :
-# tout passe par des variables, renseignees dans terraform.tfvars (non versionne).
-
 variable "subscription_id" {
   description = "Identifiant de la souscription Azure"
   type        = string
@@ -17,18 +14,6 @@ variable "location" {
   type        = string
   default     = "switzerlandnorth"
 
-  # Deux contraintes se cumulent sur une souscription "Azure for Students" :
-  #
-  # 1. La politique "Allowed resource deployment regions" limite le deploiement
-  #    aux 5 regions listees ci-dessous (sinon : 403 RequestDisallowedByAzure).
-  # 2. Parmi ces 5 regions, la taille B1s n'est pas partout disponible pour ce
-  #    type de souscription (sinon : 409 SkuNotAvailable). Verifie a Madrid et
-  #    a Stockholm : bloquee. Zurich : disponible.
-  #
-  # Verifier avant tout apply :
-  #   az vm list-skus -l <region> --size Standard_B1s --all \
-  #     --query "[0].restrictions[].reasonCode" -o tsv
-  # Une sortie VIDE signifie "disponible".
   validation {
     condition = contains([
       "spaincentral",
@@ -45,17 +30,6 @@ variable "vm_size" {
   description = "Taille des VMs (B2ls_v2 = 2 vCPU, 4 Go, burstable)"
   type        = string
   default     = "Standard_B2ls_v2"
-
-  # Le Standard_B1s a ete abandonne : Azure le refuse en 409 SkuNotAvailable
-  # ("Capacity Restrictions") a Zurich comme a Madrid pour cette souscription.
-  #
-  # ATTENTION : ce type de penurie est DYNAMIQUE. Ni "az vm list-sizes" ni
-  # "az vm list-skus" ne permettent de la prevoir : la seule verification fiable
-  # est de creer reellement une VM de test.
-  #
-  # Le B2ls_v2 (famille Bsv2, quota 10 vCPU) a ete valide par une creation reelle.
-  # 3 VMs x 2 vCPU = 6 vCPU, soit exactement la limite regionale (6). Aucune marge :
-  # une 4e VM serait refusee.
 }
 
 variable "admin_username" {
@@ -75,8 +49,6 @@ variable "admin_source_ip" {
   type        = string
 }
 
-# --- Plan d'adressage ---
-
 variable "vnet_cidr" {
   description = "Plage d'adresses du reseau virtuel"
   type        = string
@@ -95,9 +67,6 @@ variable "private_subnet_cidr" {
   default     = "10.0.2.0/24"
 }
 
-# IP privees fixes : elles permettent d'ecrire des regles de pare-feu
-# precises (telle machine vers telle machine) plutot que "tout le sous-reseau".
-
 variable "front_private_ip" {
   description = "IP privee fixe de la VM Front"
   type        = string
@@ -115,8 +84,6 @@ variable "db_private_ip" {
   type        = string
   default     = "10.0.2.20"
 }
-
-# --- Ports applicatifs ---
 
 variable "backend_port" {
   description = "Port ecoute par l'API sur la VM Back"

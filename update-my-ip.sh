@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-#
-# Met a jour la regle SSH du pare-feu avec l'IP publique actuelle.
-#
-# A lancer chaque fois que l'on change de reseau (Wi-Fi de l'ecole, partage de
-# connexion, redemarrage de la box...). Le NSG du Front n'autorise le SSH que
-# depuis UNE seule IP, comme l'exige le sujet : des qu'elle change, on est
-# bloque hors de ses propres serveurs.
-#
-# Usage :  ./update-my-ip.sh
 set -euo pipefail
 
 ICI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,14 +25,14 @@ fi
 echo "==> Mise a jour de terraform.tfvars"
 sed -i "s|^admin_source_ip.*|admin_source_ip = \"$IP\"|" "$TF/terraform.tfvars"
 
-echo "==> terraform apply (seule la regle du NSG est modifiee, aucune VM n'est recreee)"
+echo "==> terraform apply"
 terraform -chdir="$TF" apply -auto-approve -no-color | grep -E "will be updated|Apply complete|Error"
 
 echo "==> Verification : le SSH fonctionne-t-il ?"
 FRONT=$(terraform -chdir="$TF" output -raw front_public_ip)
 USER=$(terraform -chdir="$TF" output -raw admin_username)
 
-sleep 10  # laisse le temps a la regle de se propager
+sleep 10
 
 if ssh -i ~/.ssh/id_medishop \
        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \

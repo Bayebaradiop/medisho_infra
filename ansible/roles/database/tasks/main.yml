@@ -1,16 +1,9 @@
 ---
-# PostgreSQL, en conteneur, sur la VM DB (sous-reseau prive).
-#
-# La base n'est PAS geree par le pipeline CI/CD : on ne construit aucune image,
-# on utilise l'image officielle. C'est donc Ansible qui la deploie.
-
 - name: Refuser de continuer si le mot de passe de la base n'est pas fourni
   ansible.builtin.assert:
     that:
       - db_password | length > 0
-    fail_msg: >-
-      DB_PASSWORD n'est pas defini. Lance :  export DB_PASSWORD='...'
-      Aucun mot de passe ne doit etre ecrit en dur dans le code.
+    fail_msg: "DB_PASSWORD n'est pas defini. Lancer : export DB_PASSWORD='...'"
     success_msg: "Mot de passe de la base recupere depuis l'environnement"
 
 - name: Creer le dossier du schema initial
@@ -38,12 +31,9 @@
       POSTGRES_USER: "{{ db_user }}"
       POSTGRES_PASSWORD: "{{ db_password }}"
     ports:
-      # Publie sur l'IP privee uniquement. Meme si quelqu'un ouvrait le NSG,
-      # la base n'ecouterait pas sur une interface publique (elle n'en a pas).
       - "{{ db_port }}:5432"
     volumes:
       - medishop-db-data:/var/lib/postgresql/data
-      # Le schema n'est joue qu'au tout premier demarrage (volume vide)
       - /opt/medishop/db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U {{ db_user }} -d {{ db_name }}"]

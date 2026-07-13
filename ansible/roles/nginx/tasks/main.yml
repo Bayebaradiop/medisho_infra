@@ -1,12 +1,4 @@
 ---
-# Nginx en reverse proxy + HTTPS Let's Encrypt, sur la VM Front uniquement.
-#
-# L'ordre des taches resout un probleme de poule et d'oeuf :
-#   - Certbot a besoin que Nginx serve deja /.well-known/acme-challenge/ en HTTP
-#   - mais la config HTTPS a besoin d'un certificat qui n'existe pas encore
-# On deploie donc d'abord une config HTTP valide, puis on obtient le certificat,
-# puis on redeploie la config avec le HTTPS active.
-
 - name: Installer Nginx et Certbot
   ansible.builtin.apt:
     name:
@@ -25,8 +17,6 @@
     group: www-data
     mode: "0755"
   become: true
-
-# --- Passe 1 : le certificat existe-t-il deja ? ---
 
 - name: Verifier si un certificat existe deja
   ansible.builtin.stat:
@@ -75,12 +65,8 @@
     enabled: true
   become: true
 
-# On applique la config HTTP maintenant : Certbot en a besoin pour valider
-# le domaine a l'etape suivante.
 - name: Appliquer la configuration avant de demander le certificat
   ansible.builtin.meta: flush_handlers
-
-# --- Passe 2 : obtenir le certificat, puis reactiver le HTTPS ---
 
 - name: Obtenir le certificat Let's Encrypt
   ansible.builtin.command:
@@ -88,9 +74,6 @@
       certbot certonly --webroot -w /var/www/certbot
       -d {{ domain_name }}
       --non-interactive --agree-tos --register-unsafely-without-email
-    # "creates" rend la tache IDEMPOTENTE : si le certificat est deja la,
-    # Certbot n'est pas rappele. Indispensable, car Let's Encrypt limite
-    # severement le nombre de demandes par semaine.
     creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
   become: true
   when: not https_actif
@@ -122,8 +105,6 @@
   changed_when: false
   when: https_actif
 
-# Certbot installe lui-meme une tache planifiee de renouvellement. On verifie
-# qu'elle fonctionne : un certificat expire fait tomber le site.
 - name: Verifier que le renouvellement automatique fonctionne
   ansible.builtin.command: certbot renew --dry-run
   become: true

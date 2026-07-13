@@ -1,10 +1,4 @@
 ---
-# Installe Docker Engine + le plugin Docker Compose sur les 3 VMs.
-#
-# Chaque tache decrit un ETAT SOUHAITE, pas une commande a executer.
-# C'est ce qui rend le role idempotent : si l'etat est deja atteint,
-# Ansible signale "ok" et ne fait rien.
-
 - name: Installer les dependances necessaires au depot Docker
   ansible.builtin.apt:
     name:
@@ -59,8 +53,6 @@
     name: python3-docker
     state: present
   become: true
-  # Requis par les modules community.docker.* : ils pilotent Docker via
-  # l'API Python, et non en lancant la commande "docker".
 
 - name: S'assurer que le service Docker tourne et demarre au boot
   ansible.builtin.systemd:
@@ -75,6 +67,4 @@
     groups: docker
     append: true
   become: true
-  # La nouvelle appartenance au groupe n'est prise en compte qu'a la
-  # prochaine session SSH : on force donc une reconnexion.
   notify: Reinitialiser la connexion SSH

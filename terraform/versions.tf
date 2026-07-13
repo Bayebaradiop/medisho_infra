@@ -12,6 +12,5 @@ terraform {
 provider "azurerm" {
   features {}
 
-  # Depuis la v4 du provider, la souscription doit etre explicite.
   subscription_id = var.subscription_id
 }

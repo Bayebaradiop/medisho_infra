@@ -1,15 +1,7 @@
 ---
-# Nom de domaine servi par Nginx (surcharge dans group_vars/all.yml).
-# A defaut, on retombe sur l'IP publique : le site reste accessible en HTTP,
-# mais Let's Encrypt ne delivre JAMAIS de certificat pour une adresse IP.
 domain_name: "{{ public_ip }}"
-
-# Calcule par le role : vrai si le certificat existe deja sur le serveur.
 https_actif: false
 
-# Port sur lequel le conteneur du front applicatif ecoute, sur la VM Front
 front_container_port: 3000
-
-# Le Back, joignable uniquement depuis le Front (voir NSG)
 backend_host: "10.0.2.10"
 backend_port: 8080

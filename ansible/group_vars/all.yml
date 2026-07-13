@@ -1,35 +1,16 @@
 ---
-# Variables partagees par toutes les machines.
-#
-# AUCUN SECRET N'EST ECRIT ICI : le mot de passe de la base est lu dans
-# l'environnement. Ce fichier peut donc etre versionne sans risque.
-#
-# Avant de lancer le playbook :
-#   export DB_PASSWORD='...'
-#
-# Plus tard, c'est Jenkins qui injectera cette variable depuis ses Credentials.
-
-# Nom de domaine du site.
-#
-# sslip.io est un service DNS qui resout n'importe quel nom contenant une IP
-# vers cette IP : 20.199.183.9.sslip.io -> 20.199.183.9. Aucune inscription,
-# et Let's Encrypt delivre bien un certificat pour ce domaine (verifie).
-#
-# Il en faut un : Let's Encrypt ne certifie JAMAIS une adresse IP nue.
 domain_name: "20.199.183.9.sslip.io"
 
 db_name: todoapp
 db_user: todoapp
 db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
 
-# IP privees (voir terraform output)
 db_host: "10.0.2.20"
 db_port: 5432
 back_host: "10.0.2.10"
 back_port: 8080
 front_container_port: 3000
 
-# Images publiees sur Docker Hub
 image_back: "bayebara01012000/medishop_b"
 image_front: "bayebara01012000/medishop_f"
 image_tag: "latest"
